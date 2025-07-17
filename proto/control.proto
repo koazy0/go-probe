@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package control;
+
+//import "google/protobuf/any.proto";  // 用于 Any 类型
+option go_package = "github.com/koazy0/go-probe/proto/controlpb";
+
+// gRPC 服务定义
+service ControlService {
+  // 客户端调用，Server 不断推送 Response
+  rpc StreamRules(Empty) returns (stream Response);
+}
+
+// 空消息
+message Empty {}
+
+// 通用响应包裹：code + message + data
+message Response {
+  int32 code    = 1;                // 业务状态码
+  string message = 2;               // 描述信息
+  //google.protobuf.Any data = 3;     // 任意类型的数据
+}
+
+// 具体的转发规则结构体，先放在这占位
+message ProxyRule {
+  string source_addr      = 1; // 监听源地址
+  string destination_addr = 2; // 转发目标地址
+}

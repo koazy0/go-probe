@@ -20,7 +20,6 @@ var rules = []proxyRule{
 }
 
 func main() {
-	dynamicRuleListen()
 
 	for _, rule := range rules {
 		listener, err := net.Listen("tcp", rule.SourceAddr)
@@ -64,13 +63,4 @@ func handleConnection(srcConn net.Conn, dstAddr string) {
 		wg.Done()
 	}()
 	wg.Wait()
-}
-
-// 获取动态下发功能
-func dynamicRuleListen() {
-	listener, err := net.Listen("tcp", "50050")
-	if err != nil {
-		return
-	}
-	listener.Accept()
 }
