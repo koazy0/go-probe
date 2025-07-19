@@ -4,7 +4,7 @@
 // - protoc             v3.19.4
 // source: proto/control.proto
 
-package controlpb
+package proto
 
 import (
 	context "context"
@@ -19,7 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ControlService_StreamRules_FullMethodName = "/control.ControlService/StreamRules"
+	ControlService_PushRules_FullMethodName = "/control.ControlService/PushRules"
 )
 
 // ControlServiceClient is the client API for ControlService service.
@@ -29,7 +29,7 @@ const (
 // gRPC 服务定义
 type ControlServiceClient interface {
 	// 客户端调用，Server 不断推送 Response
-	StreamRules(ctx context.Context, in *Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Response], error)
+	PushRules(ctx context.Context, in *PushRulesRequest, opts ...grpc.CallOption) (*Response, error)
 }
 
 type controlServiceClient struct {
@@ -40,24 +40,15 @@ func NewControlServiceClient(cc grpc.ClientConnInterface) ControlServiceClient {
 	return &controlServiceClient{cc}
 }
 
-func (c *controlServiceClient) StreamRules(ctx context.Context, in *Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Response], error) {
+func (c *controlServiceClient) PushRules(ctx context.Context, in *PushRulesRequest, opts ...grpc.CallOption) (*Response, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &ControlService_ServiceDesc.Streams[0], ControlService_StreamRules_FullMethodName, cOpts...)
+	out := new(Response)
+	err := c.cc.Invoke(ctx, ControlService_PushRules_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &grpc.GenericClientStream[Empty, Response]{ClientStream: stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
+	return out, nil
 }
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type ControlService_StreamRulesClient = grpc.ServerStreamingClient[Response]
 
 // ControlServiceServer is the server API for ControlService service.
 // All implementations must embed UnimplementedControlServiceServer
@@ -66,7 +57,7 @@ type ControlService_StreamRulesClient = grpc.ServerStreamingClient[Response]
 // gRPC 服务定义
 type ControlServiceServer interface {
 	// 客户端调用，Server 不断推送 Response
-	StreamRules(*Empty, grpc.ServerStreamingServer[Response]) error
+	PushRules(context.Context, *PushRulesRequest) (*Response, error)
 	mustEmbedUnimplementedControlServiceServer()
 }
 
@@ -77,8 +68,8 @@ type ControlServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedControlServiceServer struct{}
 
-func (UnimplementedControlServiceServer) StreamRules(*Empty, grpc.ServerStreamingServer[Response]) error {
-	return status.Errorf(codes.Unimplemented, "method StreamRules not implemented")
+func (UnimplementedControlServiceServer) PushRules(context.Context, *PushRulesRequest) (*Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PushRules not implemented")
 }
 func (UnimplementedControlServiceServer) mustEmbedUnimplementedControlServiceServer() {}
 func (UnimplementedControlServiceServer) testEmbeddedByValue()                        {}
@@ -101,16 +92,23 @@ func RegisterControlServiceServer(s grpc.ServiceRegistrar, srv ControlServiceSer
 	s.RegisterService(&ControlService_ServiceDesc, srv)
 }
 
-func _ControlService_StreamRules_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(Empty)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
+func _ControlService_PushRules_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PushRulesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
 	}
-	return srv.(ControlServiceServer).StreamRules(m, &grpc.GenericServerStream[Empty, Response]{ServerStream: stream})
+	if interceptor == nil {
+		return srv.(ControlServiceServer).PushRules(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControlService_PushRules_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServiceServer).PushRules(ctx, req.(*PushRulesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type ControlService_StreamRulesServer = grpc.ServerStreamingServer[Response]
 
 // ControlService_ServiceDesc is the grpc.ServiceDesc for ControlService service.
 // It's only intended for direct use with grpc.RegisterService,
@@ -118,13 +116,12 @@ type ControlService_StreamRulesServer = grpc.ServerStreamingServer[Response]
 var ControlService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "control.ControlService",
 	HandlerType: (*ControlServiceServer)(nil),
-	Methods:     []grpc.MethodDesc{},
-	Streams: []grpc.StreamDesc{
+	Methods: []grpc.MethodDesc{
 		{
-			StreamName:    "StreamRules",
-			Handler:       _ControlService_StreamRules_Handler,
-			ServerStreams: true,
+			MethodName: "PushRules",
+			Handler:    _ControlService_PushRules_Handler,
 		},
 	},
+	Streams:  []grpc.StreamDesc{},
 	Metadata: "proto/control.proto",
 }

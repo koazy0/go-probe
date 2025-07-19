@@ -3,12 +3,13 @@ syntax = "proto3";
 package control;
 
 //import "google/protobuf/any.proto";  // 用于 Any 类型
-option go_package = "github.com/koazy0/go-probe/proto/controlpb";
+//option go_package = "github.com/koazy0/go-probe/proto/controlpb";
+option go_package = "proto/";
 
 // gRPC 服务定义
 service ControlService {
   // 客户端调用，Server 不断推送 Response
-  rpc StreamRules(Empty) returns (stream Response);
+  rpc PushRules(PushRulesRequest) returns (Response);
 }
 
 // 空消息
@@ -25,4 +26,9 @@ message Response {
 message ProxyRule {
   string source_addr      = 1; // 监听源地址
   string destination_addr = 2; // 转发目标地址
+  string option = 3; // add or del
+}
+
+message PushRulesRequest {
+  repeated ProxyRule rules = 1; //可能下发多条
 }

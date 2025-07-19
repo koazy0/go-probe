@@ -2,65 +2,51 @@ package main
 
 import (
 	"context"
-	"io"
+	"github.com/gogf/gf/v2/util/gconv"
+	_ "github.com/koazy0/go-probe/global"
+	"github.com/koazy0/go-probe/model"
+	pb "github.com/koazy0/go-probe/proto"
+	"github.com/koazy0/go-probe/proxy"
+	"google.golang.org/grpc"
 	"log"
 	"net"
-	"sync"
 )
-
-type proxyRule struct {
-	SourceAddr      string
-	DestinationAddr string
-	ctx             context.Context
-}
-
-var rules = []proxyRule{
-	{":10030", "127.0.0.1:22", nil},
-	{":10040", "127.0.0.1:22", nil},
-}
 
 func main() {
 
-	for _, rule := range rules {
-		listener, err := net.Listen("tcp", rule.SourceAddr)
-		if err != nil {
-			log.Println(err.Error())
-			continue
-		}
-		go func(listener net.Listener, dstAddr string) {
-			for {
-				srcConn, err := listener.Accept()
-				if err != nil {
-					return
-				}
-				go handleConnection(srcConn, dstAddr)
-			}
-		}(listener, rule.DestinationAddr)
-
+	proxy.SetUp()
+	lis, err := net.Listen("tcp", ":50051")
+	if err != nil {
+		log.Fatalf("监听失败: %v", err)
 	}
-
-	select {}
+	grpcServer := grpc.NewServer()
+	pb.RegisterControlServiceServer(grpcServer, &controlServer{})
+	log.Println("gRPC 服务器已启动，监听端口 :50051")
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Fatalf("启动失败: %v", err)
+	}
 }
 
-func handleConnection(srcConn net.Conn, dstAddr string) {
-	defer srcConn.Close()
-	dstConn, err := net.Dial("tcp", dstAddr)
-	if err != nil {
-		return
-	}
-	defer dstConn.Close()
-	wg := sync.WaitGroup{}
-	wg.Add(2)
+type controlServer struct {
+	pb.UnimplementedControlServiceServer
+}
 
-	//转发访问本机的流量
-	go func() {
-		io.Copy(dstConn, srcConn)
-		wg.Done()
-	}()
-	//转发返回的流量
-	go func() {
-		io.Copy(srcConn, dstConn)
-		wg.Done()
-	}()
-	wg.Wait()
+func (s *controlServer) PushRules(ctx context.Context, req *pb.PushRulesRequest) (*pb.Response, error) {
+	for _, rule := range req.Rules {
+		log.Printf("接收到规则：SourceAddr=%s, DestinationAddr=%s", rule.SourceAddr, rule.DestinationAddr)
+	}
+	rules := []model.ProxyRule{}
+	err := gconv.Struct(req.Rules, &rules)
+	if err != nil {
+		log.Println(err.Error())
+		return &pb.Response{
+			Code:    500,
+			Message: "internal error",
+		}, nil
+	}
+	proxy.ProxyChan <- rules
+	return &pb.Response{
+		Code:    0,
+		Message: "成功",
+	}, nil
 }
